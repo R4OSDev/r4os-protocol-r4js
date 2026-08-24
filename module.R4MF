@@ -1,7 +1,7 @@
 R4OS_MODULE_MANIFEST=2
 KIND=R4P
 NAME=R4JS
-VERSION=0.54.2
+VERSION=0.54.3
 LANGUAGE=Zig
 SOURCE=src/main.zig
 TARGET=/R4OS/PROTOCOLS/R4JS.R4P
@@ -19,6 +19,7 @@ META=feature=async-module-runtime
 META=feature=complete-cooperative-runtime
 META=feature=complete-job-runtime
 META=feature=complete-diagnostic-runtime
+META=feature=capacity-safe-regexp
 META=feature=complete-typedarrays
 META=feature=complete-sharedarraybuffer-atomics
 META=feature=web-runtime-bindings

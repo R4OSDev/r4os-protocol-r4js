@@ -20,6 +20,16 @@ wird nach erfolgreichem Parsen fuer Instruktionen und Segmentmetadaten
 wiederverwendet. Alle Speicherbereiche gehoeren einer Runtime-Instanz und
 werden weder im Kernel noch in R4DRAW abgelegt.
 
+RegExp arbeitet normale Atomfolgen iterativ ab; die Backtrackingtiefe 32
+zaehlt dadurch nur noch echte Gruppen- und Verzweigungskanten. Quantifier
+werten jede Wiederholungsschicht bis zum allgemeinen 65.536-Elemente-Budget
+direkt gegen ihre Restsequenz aus, statt alle Zwischenpositionen in den 64
+Zustaenden zu sammeln. Greedy und lazy behalten ihre jeweilige
+Sprachreihenfolge. Werden mehr als 64 gleichzeitige Alternativen benoetigt,
+bleiben die bevorzugten Zustaende erhalten; koennte eine verworfene
+Alternative einen scheinbaren Nichttreffer verursacht haben, endet die
+Operation sichtbar mit `RangeError`.
+
 Parser, Compiler, VM und Hostfunktionen schreiben Fehlerart, Quellname,
 Zeile, Spalte, Quellkontext und den aktiven Bytecode-Aufrufstack in einen
 gemeinsamen Diagnosezustand. In JavaScript gefangene Laufzeitfehler besitzen
