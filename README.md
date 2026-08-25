@@ -4,7 +4,7 @@
 
 ## Package
 
-- Version: `0.54.3`
+- Version: `0.54.4`
 - Image target: `/R4OS/PROTOCOLS/R4JS.R4P`
 - Image scope: `full`
 - Canonical project manifest: `module.R4MF`

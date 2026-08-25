@@ -20,6 +20,16 @@ wird nach erfolgreichem Parsen fuer Instruktionen und Segmentmetadaten
 wiederverwendet. Alle Speicherbereiche gehoeren einer Runtime-Instanz und
 werden weder im Kernel noch in R4DRAW abgelegt.
 
+Eine erfolgreiche Parse-/Compile-Runde veroeffentlicht genau eine
+monoton steigende Bytecode-Generation. Normale Funktions-, Generator- und
+Async-Aufrufe pruefen nur noch diese Generation und die zugehoerige
+Parse-Generation, statt bei jedem Eintritt das gesamte Programm erneut mit
+FNV zu hashen. Der vollstaendige Fingerprint bleibt ueber
+`verifyBytecodeIntegrity` als ausdrueckliche Diagnose verfuegbar. Wer
+Bytecode ausserhalb des Compilers veraendert, muss ihn vorher mit
+`invalidateBytecode` sperren und anschliessend neu parsen beziehungsweise
+kompilieren; veroeffentlichter Bytecode ist ansonsten unveraenderlich.
+
 RegExp arbeitet normale Atomfolgen iterativ ab; die Backtrackingtiefe 32
 zaehlt dadurch nur noch echte Gruppen- und Verzweigungskanten. Quantifier
 werten jede Wiederholungsschicht bis zum allgemeinen 65.536-Elemente-Budget
