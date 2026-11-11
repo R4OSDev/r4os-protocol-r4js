@@ -17,20 +17,23 @@ pub const result_limit: i32 = -8;
 pub const result_busy: i32 = -9;
 pub const result_cancelled: i32 = -10;
 
-var protocol_api: ?*const r4os.r4dev.ProtocolApi = null;
+var protocol_api: ?*const r4os.r4dev.ProtocolApi2 = null;
 var workspace_busy: u8 = 0;
 
 comptime {
-    asm (r4os.r4dev.protocolEntriesAsm("r4js_init", "r4js_shutdown", "r4js_query", "r4js_dispatch"));
+    asm (r4os.technical2.protocolEntriesAsm("r4js_init", "r4js_shutdown", "r4js_query", "r4js_dispatch"));
 }
 
-export fn r4js_init(api: *const r4os.r4dev.ProtocolApi) callconv(.c) i32 {
-    protocol_api = api;
-    var ctx = r4os.r4dev.ProtocolContext.init(api);
+export fn r4js_init(api: *const r4os.r4dev.ProtocolApi2) callconv(.c) i32 {
+    protocol_api = null;
+    var ctx = r4os.r4dev.ProtocolContext2.init(api);
+    if (!ctx.requires(.{ "register_role", "set_status", "alloc", "free" })) return r4os.abi.err_no_fn;
     ctx.logInfo("R4JS.R4P init");
-    _ = ctx.registerRole("application.javascript", .data, 0);
-    _ = ctx.setStatus(.active, "JavaScript runtime active");
-    return 0;
+    const registered = ctx.registerRole("application.javascript", .data, 0);
+    if (registered != 0) return registered;
+    const result = ctx.setStatus(.active, "JavaScript runtime active");
+    if (result == 0) protocol_api = api;
+    return result;
 }
 
 export fn r4js_shutdown() callconv(.c) i32 {
@@ -99,7 +102,7 @@ fn webRuntimeSelftest(out_buffer: *r4os.abi.ProtocolBuffer) i32 {
     return writeOut(out_buffer, "R4JS web-runtime selftest: OK window=ok dom=ok events=ok timers=ok fetch=guarded xhr=guarded storage=origin history=actions cors=ok csp=ok generations=ok");
 }
 
-fn programAllocator(api: *const r4os.r4dev.ProtocolApi) r4os.javascript.ProgramAllocator {
+fn programAllocator(api: *const r4os.r4dev.ProtocolApi2) r4os.javascript.ProgramAllocator {
     return .{
         .context = @ptrCast(@constCast(api)),
         .create = createProgram,
@@ -110,8 +113,8 @@ fn programAllocator(api: *const r4os.r4dev.ProtocolApi) r4os.javascript.ProgramA
 }
 
 fn createProgram(context: *anyopaque) ?*r4os.javascript.Program {
-    const api: *const r4os.r4dev.ProtocolApi = @ptrCast(@alignCast(context));
-    const program = r4os.r4dev.ProtocolContext.init(api).alloc(
+    const api: *const r4os.r4dev.ProtocolApi2 = @ptrCast(@alignCast(context));
+    const program = api.alloc(
         @intCast(@sizeOf(r4os.javascript.Program)),
         @intCast(@alignOf(r4os.javascript.Program)),
     ) orelse return null;
@@ -121,19 +124,21 @@ fn createProgram(context: *anyopaque) ?*r4os.javascript.Program {
 }
 
 fn destroyProgram(context: *anyopaque, program: *r4os.javascript.Program) void {
-    const api: *const r4os.r4dev.ProtocolApi = @ptrCast(@alignCast(context));
-    r4os.r4dev.ProtocolContext.init(api).free(program, @intCast(@sizeOf(r4os.javascript.Program)));
+    const api: *const r4os.r4dev.ProtocolApi2 = @ptrCast(@alignCast(context));
+    api.free(program, @intCast(@sizeOf(r4os.javascript.Program)));
 }
 
 fn allocateRuntimeMemory(context: *anyopaque, length: usize, alignment: usize) ?[*]u8 {
-    const api: *const r4os.r4dev.ProtocolApi = @ptrCast(@alignCast(context));
-    const memory = r4os.r4dev.ProtocolContext.init(api).alloc(@intCast(length), @intCast(alignment)) orelse return null;
+    const api: *const r4os.r4dev.ProtocolApi2 = @ptrCast(@alignCast(context));
+    const bytes = std.math.cast(u32, length) orelse return null;
+    const align_bytes = std.math.cast(u32, alignment) orelse return null;
+    const memory = api.alloc(bytes, align_bytes) orelse return null;
     return @ptrCast(memory);
 }
 
 fn freeRuntimeMemory(context: *anyopaque, memory: [*]u8, length: usize, _: usize) void {
-    const api: *const r4os.r4dev.ProtocolApi = @ptrCast(@alignCast(context));
-    r4os.r4dev.ProtocolContext.init(api).free(memory, @intCast(length));
+    const api: *const r4os.r4dev.ProtocolApi2 = @ptrCast(@alignCast(context));
+    api.free(memory, @intCast(length));
 }
 
 fn parseSummary(in_buffer: *const r4os.abi.ProtocolBuffer, out_buffer: *r4os.abi.ProtocolBuffer) i32 {
@@ -254,14 +259,14 @@ fn releaseWorkspace() void {
 
 fn allocate(comptime T: type) ?*T {
     const api = protocol_api orelse return null;
-    const memory = r4os.r4dev.ProtocolContext.init(api).alloc(@intCast(@sizeOf(T)), @intCast(@alignOf(T))) orelse return null;
+    const memory = api.alloc(@intCast(@sizeOf(T)), @intCast(@alignOf(T))) orelse return null;
     return @ptrCast(@alignCast(memory));
 }
 
 fn release(value: anytype) void {
     const api = protocol_api orelse return;
     const T = @TypeOf(value.*);
-    r4os.r4dev.ProtocolContext.init(api).free(value, @intCast(@sizeOf(T)));
+    api.free(value, @intCast(@sizeOf(T)));
 }
 
 fn jsError(err: r4os.javascript.Error) i32 {
